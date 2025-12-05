@@ -230,6 +230,7 @@ function readFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
         inputText.value = reader.result;
+        fileInput.value = ""; // <-- CRITICAL FIX
     };
     reader.readAsText(file);
 }
