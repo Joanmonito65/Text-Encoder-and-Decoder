@@ -58,11 +58,10 @@ textarea {
     align-items: flex-start;
     word-break: break-all;
     overflow-y: auto;
-    scrollbar-width: thin; /* for Firefox */
-    scrollbar-color: rgba(255,255,255,0.4) transparent; /* Firefox */
+    scrollbar-width: thin; 
+    scrollbar-color: rgba(255,255,255,0.4) transparent;
 }
 
-/* Webkit browsers (Chrome, Edge, Safari) */
 #resultContainer::-webkit-scrollbar {
     width: 8px;
 }
@@ -105,7 +104,6 @@ textarea {
     transition: all 0.3s ease;
 }
 
-/* Bluish-purple buttons: Encode, Decode, Copy */
 .button, .copy-btn {
     background-color: #6c4dff;
 }
@@ -115,7 +113,6 @@ textarea {
     transform: translateY(-1px);
 }
 
-/* Reddish-orange Reverse button */
 .reverse-btn {
     background-color: #ff9800;
 }
@@ -155,7 +152,6 @@ textarea {
 const inputText = document.getElementById("inputText");
 const resultDiv = document.getElementById("result");
 
-// Encode Base64
 function encodeBase64() {
     const input = inputText.value;
     if (!input) {
@@ -169,7 +165,6 @@ function encodeBase64() {
     }
 }
 
-// Decode Base64
 function decodeBase64() {
     const input = inputText.value;
     if (!input) {
@@ -183,7 +178,6 @@ function decodeBase64() {
     }
 }
 
-// Copy button animation
 function copyResult(button) {
     const text = resultDiv.innerText;
     if (!text) return;
@@ -193,30 +187,25 @@ function copyResult(button) {
     });
 }
 
-// Only this function triggers the pop animation
 function animateCopyButton(button) {
     button.classList.add("copied");
     setTimeout(() => button.classList.remove("copied"), 280);
 }
 
-// Auto-update
 let mode = "encode";
 inputText.addEventListener("input", () => {
     if (mode === "encode") encodeBase64();
     else decodeBase64();
 });
 
-// Switch mode when clicking buttons
 document.querySelectorAll(".button")[0].addEventListener("click", () => mode = "encode");
 document.querySelectorAll(".button")[1].addEventListener("click", () => mode = "decode");
 
-// Reverse function
 function reverseText() {
     const temp = inputText.value;
     inputText.value = resultDiv.innerText;
     resultDiv.innerText = temp;
     mode = mode === "encode" ? "decode" : "encode";
-    // Update result immediately after reversing
     if (mode === "encode") encodeBase64();
     else decodeBase64();
 }
