@@ -45,6 +45,18 @@ textarea {
     margin-bottom: 20px;
 }
 
+#dropArea {
+    margin-top: 20px;
+    padding: 20px;
+    border: 2px dashed rgba(255,255,255,0.5);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+#dropArea.dragover {
+    background-color: rgba(255,255,255,0.1);
+}
+
 #resultContainer {
     margin-top: 20px;
     background-color: rgba(255,255,255,0.1);
@@ -85,12 +97,6 @@ textarea {
     text-align: left;
     flex: 1;
     white-space: pre-wrap;
-}
-
-
-#result {
-    text-align: left;
-    flex: 1;
 }
 
 .button, .copy-btn, .reverse-btn {
@@ -139,18 +145,28 @@ textarea {
     <h1>Base64 Encoder/Decoder</h1>
     <textarea id="inputText" placeholder="Enter text or Base64 here"></textarea>
     <br>
+
+    <div id="dropArea">Drag & Drop a text file here or click to select</div>
+    <input type="file" id="fileInput" style="display:none;">
+
+    <br>
     <button class="button" onclick="encodeBase64()">Encode</button>
     <button class="button" onclick="decodeBase64()">Decode</button>
     <button class="reverse-btn" onclick="reverseText()">Reverse</button>
 
-<div id="resultContainer">
-    <div id="result"></div>
+    <div id="resultContainer">
+        <div id="result"></div>
+    </div>
+    <button class="copy-btn" onclick="copyResult(this)">Copy</button>
 </div>
-<button class="copy-btn" onclick="copyResult(this)">Copy</button>
 
 <script>
 const inputText = document.getElementById("inputText");
 const resultDiv = document.getElementById("result");
+const dropArea = document.getElementById("dropArea");
+const fileInput = document.getElementById("fileInput");
+
+let mode = "encode";
 
 function encodeBase64() {
     const input = inputText.value;
@@ -178,10 +194,18 @@ function decodeBase64() {
     }
 }
 
+function reverseText() {
+    const temp = inputText.value;
+    inputText.value = resultDiv.innerText;
+    resultDiv.innerText = temp;
+    mode = mode === "encode" ? "decode" : "encode";
+    if (mode === "encode") encodeBase64();
+    else decodeBase64();
+}
+
 function copyResult(button) {
     const text = resultDiv.innerText;
     if (!text) return;
-
     navigator.clipboard.writeText(text).then(() => {
         animateCopyButton(button);
     });
@@ -192,7 +216,6 @@ function animateCopyButton(button) {
     setTimeout(() => button.classList.remove("copied"), 280);
 }
 
-let mode = "encode";
 inputText.addEventListener("input", () => {
     if (mode === "encode") encodeBase64();
     else decodeBase64();
@@ -201,13 +224,39 @@ inputText.addEventListener("input", () => {
 document.querySelectorAll(".button")[0].addEventListener("click", () => mode = "encode");
 document.querySelectorAll(".button")[1].addEventListener("click", () => mode = "decode");
 
-function reverseText() {
-    const temp = inputText.value;
-    inputText.value = resultDiv.innerText;
-    resultDiv.innerText = temp;
-    mode = mode === "encode" ? "decode" : "encode";
-    if (mode === "encode") encodeBase64();
-    else decodeBase64();
+dropArea.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    dropArea.classList.add("dragover");
+});
+
+dropArea.addEventListener("dragleave", () => {
+    dropArea.classList.remove("dragover");
+});
+
+dropArea.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropArea.classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+});
+
+dropArea.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => {
+    if (fileInput.files[0]) readFile(fileInput.files[0]);
+});
+
+function readFile(file) {
+    if (!file.type.startsWith("text/")) {
+        resultDiv.innerText = "Error: Only text files are allowed (PNG or other files are not supported)";
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+        inputText.value = reader.result;
+        if (mode === "encode") encodeBase64();
+        else decodeBase64();
+    };
+    reader.readAsText(file);
 }
 </script>
 
