@@ -171,13 +171,12 @@ textarea {
         <div class="tab" data-type="base32">Base32</div>
         <div class="tab" data-type="base58">Base58</div>
         <div class="tab" data-type="base64url">Base64Url</div>
-<div class="tab" data-       type="ascii85">Ascii85</div>
-<div class="tab" data-type="z85">Z85</div>
-<div class="tab" data-type="base36">Base36</div>
-<div class="tab" data-type="base62">Base62</div>
-<div class="tab" data-type="base58check">Base58Check</div>
-<div class="tab" data-type="base91">Base91</div>
-<div class="tab" data-type="base92">Base92</div>
+        <div class="tab" data-type="ascii85">Ascii85</div>
+        <div class="tab" data-type="z85">Z85</div>
+        <div class="tab" data-type="base36">Base36</div>
+        <div class="tab" data-type="base62">Base62</div>
+        <div class="tab" data-type="base58check">Base58Check</div>
+        <div class="tab" data-type="binhex">BinHex</div>
 
     </div>
 
@@ -202,6 +201,7 @@ const inputText = document.getElementById("inputText");
 const resultDiv = document.getElementById("result");
 const dropArea = document.getElementById("dropArea");
 const fileInput = document.getElementById("fileInput");
+let lastAction = null;
 let currentType = "base64";
 
 document.querySelectorAll(".tab").forEach(tab => {
@@ -241,7 +241,7 @@ function readFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
         inputText.value = reader.result;
-        fileInput.value = ""; // <-- CRITICAL FIX
+        fileInput.value = "";
     };
     reader.readAsText(file);
 }
@@ -283,15 +283,13 @@ function decodeBase32(str) {
     return new TextDecoder().decode(new Uint8Array(bytes));
 }
 
-// --- Base58Check (for Bitcoin addresses) ---
 const base58charsCheck = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
 function encodeBase58Check(str) {
     const crypto = window.crypto || window.msCrypto;
     let bytes = Array.from(new TextEncoder().encode(str));
-    // Append a simple checksum (first 4 bytes of SHA256 hash)
     const hashBuffer = crypto.subtle.digest ? crypto.subtle.digest("SHA-256", new Uint8Array(bytes)) : null;
-    if (!hashBuffer) return encodeBase58(str); // fallback if crypto.subtle not available
+    if (!hashBuffer) return encodeBase58(str);
     return hashBuffer.then(hash => {
         const hashBytes = new Uint8Array(hash);
         const checksum = hashBytes.slice(0, 4);
@@ -313,82 +311,8 @@ function decodeBase58Check(str) {
     let hex = num.toString(16);
     if (hex.length % 2) hex = "0" + hex;
     let bytes = new Uint8Array(hex.match(/.{2}/g).map(h => parseInt(h,16)));
-    // Remove last 4 checksum bytes
     bytes = bytes.slice(0, -4);
     return new TextDecoder().decode(bytes);
-}
-
-// --- Base91 ---
-const base91chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
-
-function encodeBase91(input) {
-    let b = 0, n = 0, output = "";
-    for (let i=0;i<input.length;i++){
-        b |= input.charCodeAt(i) << n;
-        n += 8;
-        while (n > 13){
-            let v = b & 8191;
-            if (v > 88){ b >>= 13; n -= 13;} else {v = b & 16383; b >>= 14; n -= 14;}
-            output += base91chars[v % 91] + base91chars[Math.floor(v / 91)];
-        }
-    }
-    if (n) output += base91chars[b % 91] + (n > 7 ? base91chars[Math.floor(b / 91)] : '');
-    return output;
-}
-
-function decodeBase91(input) {
-    let v=-1, b=0, n=0, output=[];
-    for (let i=0;i<input.length;i++){
-        let c = base91chars.indexOf(input.charAt(i));
-        if (c < 0) continue;
-        if (v < 0) v = c; else { v += c*91; b |= v << n; n += (v & 8191) > 88 ? 13 : 14; while(n>=8){output.push(b & 255); b>>=8; n-=8;} v=-1;}
-    }
-    if(v+1) output.push((b|v<<n)&255);
-    return new TextDecoder().decode(new Uint8Array(output));
-}
-
-// --- Base92 ---
-const base92chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!#$%&()*+,./:;<=>?@[]^_`{|}~\"";
-
-function encodeBase92(input) {
-    let output = "";
-    let buffer = 0;
-    let bits = 0;
-    for (let i = 0; i < input.length; i++) {
-        buffer |= input.charCodeAt(i) << bits;
-        bits += 8;
-        while (bits >= 13) {
-            let val = buffer & 8191;
-            if (val > 88) { buffer >>= 13; bits -= 13; } else { val = buffer & 16383; buffer >>= 14; bits -= 14; }
-            output += base92chars[val % 92] + base92chars[Math.floor(val / 92)];
-        }
-    }
-    if (bits) output += base92chars[buffer % 92] + (bits > 7 ? base92chars[Math.floor(buffer / 92)] : '');
-    return output;
-}
-
-function decodeBase92(input) {
-    let output = [];
-    let buffer = 0;
-    let bits = 0;
-    let v = -1;
-    for (let i = 0; i < input.length; i++) {
-        let c = base92chars.indexOf(input.charAt(i));
-        if (c < 0) continue;
-        if (v < 0) v = c; else {
-            v += c * 92;
-            buffer |= v << bits;
-            bits += (v & 8191) > 88 ? 13 : 14;
-            while (bits >= 8) {
-                output.push(buffer & 255);
-                buffer >>= 8;
-                bits -= 8;
-            }
-            v = -1;
-        }
-    }
-    if (v + 1) output.push((buffer | v << bits) & 255);
-    return new TextDecoder().decode(new Uint8Array(output));
 }
 
 const base58chars = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -502,6 +426,18 @@ function decodeZ85(str) {
     return new TextDecoder().decode(new Uint8Array(output));
 }
 
+function encodeBinHex(str) {
+    return Array.from(str).map(c => c.charCodeAt(0).toString(16).padStart(2,'0')).join('');
+}
+
+function decodeBinHex(str) {
+    try {
+        return str.match(/.{1,2}/g).map(h => String.fromCharCode(parseInt(h,16))).join('');
+    } catch {
+        return "Invalid BinHex input";
+    }
+}
+
 function encodeBase36(str) {
     let hex = Array.from(new TextEncoder().encode(str))
         .map(b=>b.toString(16).padStart(2,"0"))
@@ -553,6 +489,7 @@ function decodeBase64Url(str) {
 }
 
 function encodeText() {
+    lastAction = "encode";
     const input = inputText.value;
     if(!input) return resultDiv.innerText = "";
 
@@ -569,19 +506,18 @@ function encodeText() {
         case "base32": resultDiv.innerText = encodeBase32(input); break;
         case "base58": resultDiv.innerText = encodeBase58(input); break;
         case "base64url": resultDiv.innerText = encodeBase64Url(input); break;
-case "ascii85": resultDiv.innerText = encodeAscii85(input); break;
-case "z85": resultDiv.innerText = encodeZ85(input); break;
-case "base36": resultDiv.innerText = encodeBase36(input); break;
-case "base62": resultDiv.innerText = encodeBase62(input); break;
-
-case "base58check": encodeBase58Check(input).then(res=>resultDiv.innerText=res); break;
-case "base91": resultDiv.innerText = encodeBase91(input); break;
-case "base92": resultDiv.innerText = encodeBase92(input); break;
+        case "ascii85": resultDiv.innerText = encodeAscii85(input); break;
+        case "z85": resultDiv.innerText = encodeZ85(input); break;
+        case "base36": resultDiv.innerText = encodeBase36(input); break;
+        case "base62": resultDiv.innerText = encodeBase62(input); break;
+        case "base58check": encodeBase58Check(input).then(res=>resultDiv.innerText=res); break;
+        case "binhex": resultDiv.innerText = encodeBinHex(input); break;
 
     }
 }
 
 function decodeText() {
+    lastAction = "decode";
     const input = inputText.value;
     if(!input) return resultDiv.innerText = "";
 
@@ -595,14 +531,12 @@ function decodeText() {
         case "morse": try{const revMorse=Object.fromEntries(Object.entries(morseMap).map(([k,v])=>[v,k])); resultDiv.innerText=input.split(' ').map(c=>revMorse[c]||'').join('');} catch{resultDiv.innerText="Invalid Morse input";} break;
         case "binary": try{resultDiv.innerText = input.split(' ').map(b=>String.fromCharCode(parseInt(b,2))).join('');} catch{resultDiv.innerText="Invalid Binary input";} break;
         case "octal": try{resultDiv.innerText = input.split(' ').map(o=>String.fromCharCode(parseInt(o,8))).join('');} catch{resultDiv.innerText="Invalid Octal input";} break;
-case "ascii85": resultDiv.innerText = decodeAscii85(input); break;
-case "z85": resultDiv.innerText = decodeZ85(input); break;
-case "base36": resultDiv.innerText = decodeBase36(input); break;
-case "base62": resultDiv.innerText = decodeBase62(input); break;
-
-case "base58check": resultDiv.innerText = decodeBase58Check(input); break;
-case "base91": resultDiv.innerText = decodeBase91(input); break;
-case "base92": resultDiv.innerText = decodeBase92(input); break;
+        case "ascii85": resultDiv.innerText = decodeAscii85(input); break;
+        case "z85": resultDiv.innerText = decodeZ85(input); break;
+        case "base36": resultDiv.innerText = decodeBase36(input); break;
+        case "base62": resultDiv.innerText = decodeBase62(input); break;
+        case "base58check": resultDiv.innerText = decodeBase58Check(input); break;
+        case "binhex": resultDiv.innerText = decodeBinHex(input); break;
 
     }
 }
@@ -618,6 +552,12 @@ function copyResult(button){
     if(!text) return;
     navigator.clipboard.writeText(text).then(()=>{button.classList.add("copied"); setTimeout(()=>button.classList.remove("copied"),280);});
 }
+
+inputText.addEventListener("input", () => {
+    if(lastAction === "encode") encodeText();
+    else if(lastAction === "decode") decodeText();
+});
+
 </script>
 
 </body>
