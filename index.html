@@ -186,6 +186,14 @@ textarea {
         <div class="tab" data-type="caesar">Caesar</div>
         <div class="tab" data-type="vigenere">Vigenère</div>
         <div class="tab" data-type="reverse">Reverse</div>
+        <div class="tab" data-type="uuencode">UUencode</div>
+        <div class="tab" data-type="xxencode">XXencode</div>
+        <div class="tab" data-type="rot5">ROT5</div>
+        <div class="tab" data-type="rot18">ROT18</div>
+        <div class="tab" data-type="substitution">Substitution</div>
+        <div class="tab" data-type="baconian">Baconian</div>
+        <div class="tab" data-type="railfence">Rail Fence</div>
+        <div class="tab" data-type="polybius">Polybius</div>
 
     </div>
 
@@ -453,6 +461,126 @@ function encodeAscii85(input) {
     return output + "~>";
 }
 
+function uuencode(str) {
+    return btoa(str).replace(/\+/g, "`").replace(/\//g, "~");
+}
+
+function uudecode(str) {
+    return atob(str.replace(/`/g, "+").replace(/~/g, "/"));
+}
+
+function xxencode(str) {
+    return btoa(str).replace(/\+/g, "x").replace(/\//g, "z");
+}
+
+function xxdecode(str) {
+    return atob(str.replace(/x/g, "+").replace(/z/g, "/"));
+}
+
+function rot5(str) {
+    return str.replace(/[0-9]/g, c =>
+        String.fromCharCode(((c.charCodeAt(0) - 48 + 5) % 10) + 48)
+    );
+}
+
+function rot18(str) {
+    return rot13(rot5(str));
+}
+
+function substitution(str) {
+    const a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const b = "MNOPQRSTUVWXYZABCDEFGHIJKL";
+    return str.replace(/[A-Za-z]/g, c => {
+        const isLower = c >= "a" && c <= "z";
+        const idx = a.indexOf(c.toUpperCase());
+        const ch = b[idx];
+        return isLower ? ch.toLowerCase() : ch;
+    });
+}
+
+function baconianEncode(str) {
+    const a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    let out = "";
+    for (let c of str.toUpperCase()) {
+        const i = a.indexOf(c);
+        if (i === -1) out += c;
+        else out += i.toString(2).padStart(5, "0").replace(/0/g, "A").replace(/1/g, "B");
+    }
+    return out;
+}
+
+function baconianDecode(str) {
+    let out = "";
+    str = str.replace(/[^AB]/g, "");
+    for (let i = 0; i < str.length; i += 5) {
+        const chunk = str.slice(i, i+5);
+        if (chunk.length < 5) break;
+        const val = parseInt(chunk.replace(/A/g,"0").replace(/B/g,"1"), 2);
+        out += String.fromCharCode(65 + val);
+    }
+    return out;
+}
+
+function railFenceEncrypt(str, rails = 3) {
+    const a = Array.from({length: rails}, () => []);
+    let rail = 0, dir = 1;
+    for (let c of str) {
+        a[rail].push(c);
+        rail += dir;
+        if (rail === 0 || rail === rails - 1) dir *= -1;
+    }
+    return a.flat().join("");
+}
+
+function railFenceDecrypt(str, rails = 3) {
+    const pattern = [];
+    let rail = 0, dir = 1;
+    for (let i = 0; i < str.length; i++) {
+        pattern.push(rail);
+        rail += dir;
+        if (rail === 0 || rail === rails - 1) dir *= -1;
+    }
+    const railCounts = Array(rails).fill(0);
+    pattern.forEach(r => railCounts[r]++);
+    const railsArr = [];
+    let pos = 0;
+    for (let r = 0; r < rails; r++) {
+        railsArr[r] = str.slice(pos, pos + railCounts[r]).split("");
+        pos += railCounts[r];
+    }
+    let out = "";
+    railsArr.map(()=>0);
+    const index = Array(rails).fill(0);
+    for (let r of pattern) out += railsArr[r][index[r]++];
+    return out;
+}
+
+function polybiusEncode(str) {
+    const a = "ABCDEFGHIKLMNOPQRSTUVWXYZ";
+    let out = "";
+    for (let c of str.toUpperCase()) {
+        if (c === "J") c = "I";
+        const idx = a.indexOf(c);
+        if (idx === -1) out += c;
+        else out += `${Math.floor(idx/5)+1}${(idx%5)+1}`;
+    }
+    return out;
+}
+
+function polybiusDecode(str) {
+    const a = "ABCDEFGHIKLMNOPQRSTUVWXYZ";
+    let out = "";
+    for (let i = 0; i < str.length; i += 2) {
+        const row = parseInt(str[i]);
+        const col = parseInt(str[i+1]);
+        if (isNaN(row) || isNaN(col)) return str;
+        out += a[(row-1)*5 + (col-1)];
+    }
+    return out;
+}
+
+
+
 function decodeAscii85(str) {
     str = str.replace(/^<~/, "").replace(/~>$/, "").replace(/\s+/g, "");
     let output = [];
@@ -654,6 +782,14 @@ function encodeText() {
         case "rot47": resultDiv.innerText = rot47(input); break;
         case "atbash": resultDiv.innerText = atbash(input); break;
         case "caesar": resultDiv.innerText = caesar(input, 3); break;
+        case "uuencode": resultDiv.innerText = uuencode(input); break;
+        case "xxencode": resultDiv.innerText = xxencode(input); break;
+        case "rot5": resultDiv.innerText = rot5(input); break;
+        case "rot18": resultDiv.innerText = rot18(input); break;
+        case "substitution": resultDiv.innerText = substitution(input); break;
+        case "baconian": resultDiv.innerText = baconianEncode(input); break;
+        case "railfence": resultDiv.innerText = railFenceEncrypt(input); break;
+        case "polybius": resultDiv.innerText = polybiusEncode(input); break;
         case "vigenere": {
             const key = prompt("Vigenère key (leave empty for default KEY):") || "KEY";
             resultDiv.innerText = vigenereEncrypt(input, key);
@@ -667,38 +803,50 @@ function encodeText() {
 function decodeText() {
     lastAction = "decode";
     const input = inputText.value;
-    if(!input) return resultDiv.innerText = "";
+    if (!input) return resultDiv.innerText = "";
 
-    switch(currentType){
-        case "base64": try{resultDiv.innerText = decodeURIComponent(escape(atob(input)));} catch{resultDiv.innerText="Error decoding Base64";} break;
-        case "hex": try{resultDiv.innerText = input.split(' ').map(h=>String.fromCharCode(parseInt(h,16))).join('');} catch{resultDiv.innerText="Invalid Hex input";} break;
-        case "url": try{resultDiv.innerText = decodeURIComponent(input);} catch{resultDiv.innerText="Invalid URL input";} break;
-        case "html": const txt=document.createElement("textarea"); txt.innerHTML=input; resultDiv.innerText=txt.value; break;
-        case "unicode": try{resultDiv.innerText = input.split(' ').map(u=>String.fromCharCode(parseInt(u.replace('\\u',''),16))).join('');} catch{resultDiv.innerText="Invalid Unicode input";} break;
-        case "ascii": try{resultDiv.innerText = input.split(' ').map(n=>String.fromCharCode(parseInt(n))).join('');} catch{resultDiv.innerText="Invalid ASCII input";} break;
-        case "morse": try{const revMorse=Object.fromEntries(Object.entries(morseMap).map(([k,v])=>[v,k])); resultDiv.innerText=input.split(' ').map(c=>revMorse[c]||'').join('');} catch{resultDiv.innerText="Invalid Morse input";} break;
-        case "binary": try{resultDiv.innerText = input.split(' ').map(b=>String.fromCharCode(parseInt(b,2))).join('');} catch{resultDiv.innerText="Invalid Binary input";} break;
-        case "octal": try{resultDiv.innerText = input.split(' ').map(o=>String.fromCharCode(parseInt(o,8))).join('');} catch{resultDiv.innerText="Invalid Octal input";} break;
-        case "ascii85": resultDiv.innerText = decodeAscii85(input); break;
-        case "z85": resultDiv.innerText = decodeZ85(input); break;
-        case "base36": resultDiv.innerText = decodeBase36(input); break;
-        case "base62": resultDiv.innerText = decodeBase62(input); break;
-        case "base58check": resultDiv.innerText = decodeBase58Check(input); break;
-        case "binhex": resultDiv.innerText = decodeBinHex(input); break;
-        case "rot13": resultDiv.innerText = decodeROT13(input); break;
-        case "urlbase64": resultDiv.innerText = decodeURLBase64(input); break;
-        case "utf8": resultDiv.innerText = decodeUTF8Bytes(input); break;
-        case "binary16": resultDiv.innerText = decodeBinary16(input); break;
-         case "rot47": resultDiv.innerText = rot47(input); break;
-        case "atbash": resultDiv.innerText = atbash(input); break;
-        case "caesar": resultDiv.innerText = caesar(input, 26 - 3); break;
-        case "vigenere": {
-            const key = prompt("Vigenère key for decryption (leave empty for default KEY):") || "KEY";
-            resultDiv.innerText = vigenereDecrypt(input, key);
-            break;
+    try {
+        switch(currentType) {
+            case "base64": resultDiv.innerText = decodeURIComponent(escape(atob(input))); break;
+            case "hex": resultDiv.innerText = input.split(' ').map(h=>String.fromCharCode(parseInt(h,16))).join(''); break;
+            case "url": resultDiv.innerText = decodeURIComponent(input); break;
+            case "html": const txt = document.createElement("textarea"); txt.innerHTML = input; resultDiv.innerText = txt.value; break;
+            case "unicode": resultDiv.innerText = input.split(' ').map(u=>String.fromCharCode(parseInt(u.replace('\\u',''),16))).join(''); break;
+            case "ascii": resultDiv.innerText = input.split(' ').map(n=>String.fromCharCode(parseInt(n))).join(''); break;
+            case "morse": const revMorse = Object.fromEntries(Object.entries(morseMap).map(([k,v])=>[v,k])); resultDiv.innerText = input.split(' ').map(c=>revMorse[c]||'').join(''); break;
+            case "binary": resultDiv.innerText = input.split(' ').map(b=>String.fromCharCode(parseInt(b,2))).join(''); break;
+            case "octal": resultDiv.innerText = input.split(' ').map(o=>String.fromCharCode(parseInt(o,8))).join(''); break;
+            case "ascii85": resultDiv.innerText = decodeAscii85(input); break;
+            case "z85": resultDiv.innerText = decodeZ85(input); break;
+            case "base36": resultDiv.innerText = decodeBase36(input); break;
+            case "base62": resultDiv.innerText = decodeBase62(input); break;
+            case "base58check": resultDiv.innerText = decodeBase58Check(input); break;
+            case "binhex": resultDiv.innerText = decodeBinHex(input); break;
+            case "rot13": resultDiv.innerText = decodeROT13(input); break;
+            case "urlbase64": resultDiv.innerText = decodeURLBase64(input); break;
+            case "utf8": resultDiv.innerText = decodeUTF8Bytes(input); break;
+            case "binary16": resultDiv.innerText = decodeBinary16(input); break;
+            case "rot47": resultDiv.innerText = rot47(input); break;
+            case "atbash": resultDiv.innerText = atbash(input); break;
+            case "caesar": resultDiv.innerText = caesar(input, 26 - 3); break;
+            case "uuencode": resultDiv.innerText = uudecode(input); break;
+            case "xxencode": resultDiv.innerText = xxdecode(input); break;
+            case "rot5": resultDiv.innerText = rot5(input); break;
+            case "rot18": resultDiv.innerText = rot18(input); break;
+            case "substitution": resultDiv.innerText = substitution(input); break;
+            case "baconian": resultDiv.innerText = baconianDecode(input); break;
+            case "railfence": resultDiv.innerText = railFenceDecrypt(input); break;
+            case "polybius": resultDiv.innerText = polybiusDecode(input); break;
+            case "vigenere": {
+                const key = prompt("Vigenère key for decryption (leave empty for default KEY):") || "KEY";
+                resultDiv.innerText = vigenereDecrypt(input, key);
+                break;
+            }
+            case "reverse": resultDiv.innerText = reverse(input); break;
+            default: resultDiv.innerText = "Unknown decode type"; break;
         }
-        case "reverse": resultDiv.innerText = reverse(input); break;
-
+    } catch (e) {
+        resultDiv.innerText = `Error decoding ${currentType}: ${e.message || e}`;
     }
 }
 
