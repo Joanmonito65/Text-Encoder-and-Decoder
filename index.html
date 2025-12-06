@@ -181,6 +181,11 @@ textarea {
         <div class="tab" data-type="urlbase64">URL-Safe Base64</div>
         <div class="tab" data-type="utf8">UTF-8 Bytes</div>
         <div class="tab" data-type="binary16">Binary16</div>
+        <div class="tab" data-type="rot47">ROT47</div>
+        <div class="tab" data-type="atbash">Atbash</div>
+        <div class="tab" data-type="caesar">Caesar</div>
+        <div class="tab" data-type="vigenere">Vigenère</div>
+        <div class="tab" data-type="reverse">Reverse</div>
 
     </div>
 
@@ -285,6 +290,90 @@ function decodeBase32(str) {
         if (byte.length === 8) bytes.push(parseInt(byte,2));
     }
     return new TextDecoder().decode(new Uint8Array(bytes));
+}
+
+function rot47(str) {
+    return str.replace(/[\x21-\x7E]/g, c =>
+        String.fromCharCode(33 + ((c.charCodeAt(0) + 14) % 94))
+    );
+}
+
+function atbash(str) {
+    const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const z = 'ZYXWVUTSRQPONMLKJIHGFEDCBA';
+    return str.replace(/[A-Za-z]/g, c => {
+        const isLower = c >= 'a' && c <= 'z';
+        const idx = a.indexOf(c.toUpperCase());
+        const newChar = z[idx];
+        return isLower ? newChar.toLowerCase() : newChar;
+    });
+}
+
+function caesar(str, shift = 3) {
+    return str.replace(/[A-Za-z]/g, c => {
+        const base = c <= 'Z' ? 65 : 97;
+        return String.fromCharCode(
+            ((c.charCodeAt(0) - base + shift) % 26) + base
+        );
+    });
+}
+
+function vigenereEncrypt(text, key = "KEY") {
+    key = key.toUpperCase().replace(/[^A-Z]/g,"");
+    if (!key.length) return text;
+
+    let out = "";
+    let keyIndex = 0;
+
+    for (let char of text) {
+        const code = char.charCodeAt(0);
+
+        if (char >= "A" && char <= "Z") {
+            out += String.fromCharCode(
+                ((code - 65 + (key[keyIndex % key.length].charCodeAt(0) - 65)) % 26) + 65
+            );
+            keyIndex++;
+        }
+        else if (char >= "a" && char <= "z") {
+            out += String.fromCharCode(
+                ((code - 97 + (key[keyIndex % key.length].charCodeAt(0) - 65)) % 26) + 97
+            );
+            keyIndex++;
+        }
+        else out += char;
+    }
+    return out;
+}
+
+function vigenereDecrypt(text, key = "KEY") {
+    key = key.toUpperCase().replace(/[^A-Z]/g,"");
+    if (!key.length) return text;
+
+    let out = "";
+    let keyIndex = 0;
+
+    for (let char of text) {
+        const code = char.charCodeAt(0);
+
+        if (char >= "A" && char <= "Z") {
+            out += String.fromCharCode(
+                ((code - 65 - (key[keyIndex % key.length].charCodeAt(0) - 65) + 26) % 26) + 65
+            );
+            keyIndex++;
+        }
+        else if (char >= "a" && char <= "z") {
+            out += String.fromCharCode(
+                ((code - 97 - (key[keyIndex % key.length].charCodeAt(0) - 65) + 26) % 26) + 97
+            );
+            keyIndex++;
+        }
+        else out += char;
+    }
+    return out;
+}
+
+function reverse(str) {
+    return str.split("").reverse().join("");
 }
 
 const base58charsCheck = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
@@ -562,6 +651,15 @@ function encodeText() {
         case "urlbase64": resultDiv.innerText = encodeURLBase64(input); break;
         case "utf8": resultDiv.innerText = encodeUTF8Bytes(input); break;
         case "binary16": resultDiv.innerText = encodeBinary16(input); break;
+        case "rot47": resultDiv.innerText = rot47(input); break;
+        case "atbash": resultDiv.innerText = atbash(input); break;
+        case "caesar": resultDiv.innerText = caesar(input, 3); break;
+        case "vigenere": {
+            const key = prompt("Vigenère key (leave empty for default KEY):") || "KEY";
+            resultDiv.innerText = vigenereEncrypt(input, key);
+            break;
+        }
+        case "reverse": resultDiv.innerText = reverse(input); break;
 
     }
 }
@@ -591,6 +689,15 @@ function decodeText() {
         case "urlbase64": resultDiv.innerText = decodeURLBase64(input); break;
         case "utf8": resultDiv.innerText = decodeUTF8Bytes(input); break;
         case "binary16": resultDiv.innerText = decodeBinary16(input); break;
+         case "rot47": resultDiv.innerText = rot47(input); break;
+        case "atbash": resultDiv.innerText = atbash(input); break;
+        case "caesar": resultDiv.innerText = caesar(input, 26 - 3); break;
+        case "vigenere": {
+            const key = prompt("Vigenère key for decryption (leave empty for default KEY):") || "KEY";
+            resultDiv.innerText = vigenereDecrypt(input, key);
+            break;
+        }
+        case "reverse": resultDiv.innerText = reverse(input); break;
 
     }
 }
